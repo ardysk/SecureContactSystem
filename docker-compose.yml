@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # --- App ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: scs-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: contacts_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: scs-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  mailserver:
+    image: greenmail/standalone:latest
+    container_name: scs-mailserver
+    ports:
+      - "3025:3025"
+      - "3110:3110"
+      - "8085:8080"
+    environment:
+      - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=admin:admin123@localhost,user:user123@localhost
+
+  ftp-server:
+    image: fauria/vsftpd
+    container_name: scs-ftp
+    environment:
+      - FTP_USER=admin
+      - FTP_PASS=admin
+    ports:
+      - "20:20"
+      - "21:21"
+      - "21100-21110:21100-21110"
+
+  # --- Monitoring  ---
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: scs-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: scs-promtail
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: scs-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - loki
+
+volumes:
+  postgres_data:

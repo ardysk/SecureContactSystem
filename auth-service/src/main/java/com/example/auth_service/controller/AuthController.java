@@ -131,4 +131,23 @@ public class AuthController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+    @PutMapping("/user/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody Map<String, String> updates) {
+        return userRepository.findById(id).map(user -> {
+            if (updates.containsKey("firstName")) user.setFirstName(updates.get("firstName"));
+            if (updates.containsKey("lastName")) user.setLastName(updates.get("lastName"));
+            // Emaila nie pozwalamy edytować tutaj
+            userRepository.save(user);
+            return ResponseEntity.ok("Zaktualizowano dane.");
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/user/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
+            return ResponseEntity.ok("Konto usunięte.");
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

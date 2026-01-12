@@ -1,21 +1,16 @@
 package com.example.client.controller;
 
-import com.example.client.session.UserSession;
 import com.example.client.ClientApplication;
 import com.example.client.model.AuditLogDto;
-import com.example.client.model.ContactDto;
+import com.example.client.model.EmailLogDto;
+import com.example.client.session.UserSession;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.chart.PieChart;
-import javafx.scene.control.Button; // <--- DODANY IMPORT
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestTemplate;
@@ -25,152 +20,78 @@ import java.util.List;
 
 public class DashboardController {
 
-    // --- GŁÓWNY KONTENER (do podmiany widoków) ---
-    @FXML private BorderPane mainPane;
-    private Parent dashboardContent; // Tu przechowamy oryginalny widok Dashboardu (wykresy)
-
     @FXML private Label welcomeLabel;
-    @FXML private PieChart statsChart;
+    @FXML private StackPane contentArea; // Zamiast BorderPane używamy StackPane z FXML
+
+    // Lista w Dashboardzie (zastępuje wykres)
+    @FXML private ListView<String> latestEmailsList;
 
     // Tabela Audit
     @FXML private TableView<AuditLogDto> auditTable;
-    @FXML private TableColumn<AuditLogDto, String> colType;
-    @FXML private TableColumn<AuditLogDto, String> colUser;
-    @FXML private TableColumn<AuditLogDto, String> colMsg;
+    @FXML private TableColumn<AuditLogDto, String> colAction; // Zmieniono nazwę zmiennej zgodnie z FXML
+    @FXML private TableColumn<AuditLogDto, String> colWho;    // Zmieniono nazwę zmiennej zgodnie z FXML
+    @FXML private TableColumn<AuditLogDto, String> colDetails;// Zmieniono nazwę zmiennej zgodnie z FXML
     @FXML private TableColumn<AuditLogDto, String> colTime;
 
-    // Przycisk Panelu Admina
-    @FXML private Button adminPanelButton;
-
     private final RestTemplate restTemplate = new RestTemplate();
-    // Gateway URL
     private final String API_GATEWAY = "http://localhost:8000/api";
 
     @FXML
     public void initialize() {
-        // 1. Zapamiętujemy oryginalny środek (wykresy i tabele), żeby móc tu wrócić
-        if (mainPane != null) {
-            dashboardContent = (Parent) mainPane.getCenter();
+        // Ustawienie powitania
+        String username = UserSession.getInstance().getUsername();
+        if (username != null) {
+            welcomeLabel.setText("Witaj, " + username);
         }
 
-        // 2. Konfiguracja kolumn tabeli
-        colType.setCellValueFactory(new PropertyValueFactory<>("eventType"));
-        colUser.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colMsg.setCellValueFactory(new PropertyValueFactory<>("message"));
+        // Konfiguracja kolumn tabeli Audit
+        // Upewnij się, że AuditLogDto ma odpowiednie gettery
+        colAction.setCellValueFactory(new PropertyValueFactory<>("eventType"));
+        colWho.setCellValueFactory(new PropertyValueFactory<>("username"));
+        colDetails.setCellValueFactory(new PropertyValueFactory<>("message"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
 
-        // 3. LOGIKA UKRYWANIA PANELU ADMINA
-        // Sprawdzamy rolę zalogowanego użytkownika
-        String role = UserSession.getInstance().getRole();
-        if (!"ADMIN".equals(role)) {
-            if (adminPanelButton != null) {
-                adminPanelButton.setVisible(false); // Ukryj
-                adminPanelButton.setManaged(false); // Nie zajmuj miejsca w układzie
-            }
-        }
-
-        // 4. Pobranie danych na start
-        loadChartData();
+        // Ładowanie danych
+        loadLatestEmails();
         refreshAuditLogs();
-
-        // Ustawienie powitania jeśli user jest w sesji
-        if (UserSession.getInstance().getUsername() != null) {
-            setUsername(UserSession.getInstance().getUsername());
-        }
     }
 
-    public void setUsername(String username) {
-        welcomeLabel.setText("Witaj, " + username);
-    }
+    // --- LOGIKA DASHBOARDU ---
 
-    // --- NAWIGACJA (Side Menu) ---
-
-    @FXML
-    private void onDashboardClick() {
-        System.out.println("Powrót do Dashboardu");
-        if (mainPane != null && dashboardContent != null) {
-            mainPane.setCenter(dashboardContent); // Przywracamy wykresy
-            refreshAuditLogs(); // Odświeżamy dane przy powrocie
-            loadChartData();
-        }
-    }
-
-    @FXML
-    public void onMailClick() { // Public, żeby można było wywołać z zewnątrz
-        System.out.println("Przełączanie na Pocztę");
-        loadView("mail-view.fxml");
-    }
-
-    @FXML
-    private void onContactsClick() {
-        System.out.println("Przełączanie na Kontakty");
-        loadView("contacts-view.fxml");
-    }
-
-    @FXML
-    private void onFtpClick() {
-        System.out.println("Przełączanie na FTP");
-        loadView("ftp-view.fxml");
-    }
-
-    @FXML
-    public void onAdminPanelClick() {
-        // Podwójne sprawdzenie bezpieczeństwa (nawet jakby ktoś odkrył przycisk)
-        if ("ADMIN".equals(UserSession.getInstance().getRole())) {
-            loadView("admin-users-view.fxml");
-        } else {
-            System.out.println("Brak uprawnień do Panelu Admina!");
-        }
-    }
-
-    @FXML
-    private void onLogoutClick() {
-        // Czyścimy sesję
-        UserSession.getInstance().cleanUserSession();
-        // Powrót do logowania (cała scena)
-        ClientApplication.changeScene("login-view.fxml", "Logowanie", 400, 500);
-    }
-
-    // --- METODA POMOCNICZA DO PODMIANY EKRANU ---
-    // Zmieniona na public, aby ClientApplication mogło jej użyć przy przekierowaniu
-    public void loadView(String fxmlFile) {
+    private void loadLatestEmails() {
         try {
-            FXMLLoader loader = new FXMLLoader(ClientApplication.class.getResource("/fxml/" + fxmlFile));
-            Parent view = loader.load();
-            mainPane.setCenter(view); // Podmieniamy tylko środek, menu zostaje
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.err.println("Nie udało się załadować widoku: " + fxmlFile);
-        }
-    }
+            String email = UserSession.getInstance().getEmail();
+            if (email == null) {
+                latestEmailsList.getItems().add("Brak adresu email w sesji.");
+                return;
+            }
 
-    // --- LOGIKA BIZNESOWA (Wykresy i Logi) ---
-
-    private void loadChartData() {
-        try {
-            // Pobieramy listę użytkowników z Auth Service zamiast z Contact Service
-            // (bo teraz to Auth trzyma listę ludzi)
+            // Pobieramy inbox z notification-service
             var response = restTemplate.exchange(
-                    "http://localhost:8000/api/auth/users", // Zmieniony URL na Auth Service
+                    "http://localhost:8000/api/email/inbox?email=" + email,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<List<ContactDto>>() {} // ContactDto pasuje polami (age)
+                    new ParameterizedTypeReference<List<EmailLogDto>>() {}
             );
 
-            List<ContactDto> contacts = response.getBody();
-            if (contacts == null) return;
+            if (response.getBody() != null) {
+                latestEmailsList.getItems().clear();
 
-            long adults = contacts.stream().filter(c -> c.getAge() >= 18).count();
-            long minors = contacts.size() - adults;
+                // Filtrujemy nieprzeczytane i bierzemy 5 najnowszych
+                long count = response.getBody().stream()
+                        .filter(e -> !e.isRead())
+                        .peek(e -> latestEmailsList.getItems().add(
+                                "✉ Od: " + e.getSender() + " | Temat: " + e.getSubject() + " (" + e.getSentAt() + ")"
+                        ))
+                        .limit(5)
+                        .count();
 
-            ObservableList<PieChart.Data> chartData = FXCollections.observableArrayList(
-                    new PieChart.Data("Dorośli (" + adults + ")", adults),
-                    new PieChart.Data("Niepełnoletni (" + minors + ")", minors)
-            );
-            statsChart.setData(chartData);
-
+                if (count == 0) {
+                    latestEmailsList.getItems().add("Brak nowych wiadomości.");
+                }
+            }
         } catch (Exception e) {
-            System.err.println("Błąd wykresu (może brak połączenia?): " + e.getMessage());
+            latestEmailsList.getItems().add("Błąd pobierania wiadomości: " + e.getMessage());
         }
     }
 
@@ -189,7 +110,50 @@ public class DashboardController {
                 auditTable.setItems(FXCollections.observableArrayList(logs));
             }
         } catch (Exception e) {
-            System.err.println("Błąd pobierania logów: " + e.getMessage());
+            System.err.println("Błąd pobierania logów audit: " + e.getMessage());
+        }
+    }
+
+    // --- NAWIGACJA (Menu Boczne) ---
+
+    @FXML
+    public void onContactsClick() {
+        loadView("contacts-view.fxml");
+    }
+
+    @FXML
+    public void onMailClick() {
+        loadView("mail-view.fxml");
+    }
+
+    @FXML
+    public void onFtpClick() {
+        loadView("ftp-view.fxml");
+    }
+
+    @FXML
+    public void onAccountClick() {
+        loadView("account-view.fxml");
+    }
+
+    @FXML
+    public void onLogout() {
+        UserSession.getInstance().cleanUserSession();
+        ClientApplication.changeScene("login-view.fxml", "Logowanie", 400, 500);
+    }
+
+    // --- METODA POMOCNICZA DO PODMIANY EKRANU ---
+    public void loadView(String fxmlFile) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/" + fxmlFile));
+            Parent view = loader.load();
+
+            // Czyścimy obecny widok i dodajemy nowy
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Nie udało się załadować widoku: " + fxmlFile);
         }
     }
 }

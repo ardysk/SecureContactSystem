@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="10.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.client.controller.MailController">
+    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+
+    <Label text="System Pocztowy">
+        <font><Font name="System Bold" size="18.0"/></font>
+    </Label>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Filtruj wiadomości:"/>
+        <TextField fx:id="filterField" promptText="Wpisz datę, temat lub osobę..." HBox.hgrow="ALWAYS"/>
+    </HBox>
+
+    <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+
+        <Tab text="Nowa Wiadomość">
+            <VBox spacing="15.0">
+                <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+                <Label text="Do (Email):"/>
+                <TextField fx:id="toField" promptText="np. janek@firma.pl"/>
+
+                <Label text="Temat:"/>
+                <TextField fx:id="subjectField"/>
+
+                <Label text="Treść:"/>
+                <TextArea fx:id="bodyField" prefHeight="200.0" wrapText="true"/>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Załącznik z FTP:"/>
+                    <ComboBox fx:id="ftpAttachmentCombo" promptText="Wybierz plik..." prefWidth="200.0"/>
+                    <Button text="Odśwież listę FTP" onAction="#loadFtpFiles"/>
+                </HBox>
+
+                <Button text="Wyślij" onAction="#sendEmail" style="-fx-background-color: #0f62fe; -fx-text-fill: white;"/>
+            </VBox>
+        </Tab>
+
+        <Tab fx:id="inboxTab" text="Skrzynka Odbiorcza" onSelectionChanged="#loadInbox">
+            <VBox spacing="10">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Button text="Odśwież" onAction="#loadInbox"/>
+                    <Label fx:id="myEmailLabel" text="Twoja skrzynka: ..." style="-fx-text-fill: gray;"/>
+                </HBox>
+
+                <TableView fx:id="inboxTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="colInboxFrom" text="Od" prefWidth="150.0"/>
+                        <TableColumn fx:id="colInboxSubject" text="Temat" prefWidth="250.0"/>
+                        <TableColumn fx:id="colInboxDate" text="Data" prefWidth="150.0"/>
+                        <TableColumn fx:id="colInboxBody" text="Treść" prefWidth="300.0"/>
+                    </columns>
+                </TableView>
+
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Button text="Pokaż szczegóły" onAction="#showEmailDetails"/>
+                    <Button fx:id="deleteBtn" text="Usuń (Admin)" onAction="#deleteEmail"
+                            style="-fx-background-color: red; -fx-text-fill: white;" visible="false"/>
+                </HBox>
+            </VBox>
+        </Tab>
+
+        <Tab text="Wysłane" onSelectionChanged="#loadSent">
+            <VBox spacing="10">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Button text="Odśwież" onAction="#loadSent"/>
+                <TableView fx:id="sentTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="colSentTo" text="Do" prefWidth="150.0"/>
+                        <TableColumn fx:id="colSentSubject" text="Temat" prefWidth="250.0"/>
+                        <TableColumn fx:id="colSentDate" text="Data" prefWidth="150.0"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <Tab fx:id="adminTab" text="ADMIN - Wszystkie" onSelectionChanged="#loadAllEmailsAdmin">
+            <VBox spacing="10">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+
+                <HBox spacing="10">
+                    <Button text="Odśwież Listę Globalną" onAction="#loadAllEmailsAdmin"/>
+                    <Label text="(Widok administratora - wszystkie maile w bazie)" textFill="red" alignment="CENTER_LEFT"/>
+                </HBox>
+
+                <TableView fx:id="adminTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="colAdminSender" text="Nadawca" prefWidth="120.0"/>
+                        <TableColumn fx:id="colAdminRecipient" text="Odbiorca" prefWidth="120.0"/>
+                        <TableColumn fx:id="colAdminSubject" text="Temat" prefWidth="200.0"/>
+                        <TableColumn fx:id="colAdminDate" text="Data" prefWidth="150.0"/>
+                    </columns>
+                </TableView>
+
+                <Button text="Usuń trwale z bazy" onAction="#deleteAdminEmail"
+                        style="-fx-background-color: darkred; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            </VBox>
+        </Tab>
+
+    </TabPane>
+</VBox>

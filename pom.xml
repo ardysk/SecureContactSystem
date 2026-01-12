@@ -14,11 +14,13 @@
         <module>contact-service</module>
         <module>notification-service</module>
         <module>desktop-client</module>
+        <module>auth-service</module>
+        <module>audit-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
         <maven.compiler.source>23</maven.compiler.source>
         <maven.compiler.target>23</maven.compiler.target>
     </properties>
-
 </project>

@@ -2,23 +2,28 @@ package com.example.auth_service.service;
 
 import com.example.auth_service.model.User;
 import com.example.auth_service.repository.UserRepository;
-import lombok.RequiredArgsConstructor; // <--- CZY TO JEST?
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor // <--- CZY TO JEST NAD KLASĄ?
 public class AuthService {
 
-    // Pola muszą być final, żeby @RequiredArgsConstructor zadziałał
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RabbitTemplate rabbitTemplate;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    // --- RĘCZNY KONSTRUKTOR ---
+    // Jawnie inicjalizujemy wszystkie pola finalne.
+    // To naprawi błąd "not initialized in the default constructor".
+    public AuthService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public String generateToken(String username, String password) {
@@ -27,6 +32,15 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(password, user.getPassword()) && user.isActive()) {
+
+                // Logowanie do RabbitMQ (Audit) - Używamy poprawnej nazwy "audit-queue"
+                try {
+                    String logMessage = "LOGIN_SUCCESS|" + username + "|Użytkownik zalogował się do systemu";
+                    rabbitTemplate.convertAndSend("audit-queue", logMessage);
+                } catch (Exception e) {
+                    System.err.println("Błąd wysyłania logu audit: " + e.getMessage());
+                }
+
                 return "generated-jwt-token-for-" + username;
             }
         }

@@ -47,10 +47,10 @@ class ContactServiceTest {
         // 1. Sprawdzamy, czy repozytorium zostało wywołane
         verify(repository, times(1)).save(any(Contact.class));
 
-        // 2. Sprawdzamy, czy wysłano wiadomość do RabbitMQ
-        verify(rabbitTemplate, times(1)).convertAndSend(anyString(), anyString());
+        // 2. POPRAWKA: Sprawdzamy, czy wysłano wiadomość do RabbitMQ 2 RAZY (Notification + Audit)
+        verify(rabbitTemplate, times(2)).convertAndSend(anyString(), anyString());
 
-        // 3. Sprawdzamy, czy zwrócony obiekt ma czytelny adres (serwis powinien go odszyfrować dla użytkownika)
+        // 3. Sprawdzamy, czy zwrócony obiekt ma czytelny adres
         Assertions.assertEquals("Real Address", result.getAddress());
     }
 }

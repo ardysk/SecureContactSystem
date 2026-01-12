@@ -20,10 +20,17 @@
     <left>
         <VBox spacing="10" style="-fx-background-color: #f4f4f4; -fx-padding: 10; -fx-pref-width: 150;">
             <Label text="MENU" style="-fx-text-fill: gray; -fx-font-weight: bold;"/>
-            <Button text="Dashboard" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+
+            <Button text="Dashboard" onAction="#onDashboardClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+
             <Button text="Kontakty" onAction="#onContactsClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
             <Button text="Poczta" onAction="#onMailClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
             <Button text="Pliki FTP" onAction="#onFtpClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+
+            <Separator/>
+            <Button fx:id="adminPanelButton" text="Panel Admina" onAction="#onAdminPanelClick"
+                    maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT; -fx-font-weight: bold; -fx-text-fill: darkred;"/>
+
             <Separator/>
             <Button text="Moje Konto" onAction="#onAccountClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT; -fx-font-weight: bold;"/>
             <Region VBox.vgrow="ALWAYS"/>

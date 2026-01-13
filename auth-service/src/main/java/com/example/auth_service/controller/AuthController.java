@@ -2,6 +2,7 @@ package com.example.auth_service.controller;
 
 import com.example.auth_service.model.User;
 import com.example.auth_service.repository.UserRepository;
+import com.example.auth_service.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +17,14 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthController(UserRepository userRepository,
+                          PasswordEncoder passwordEncoder,
+                          AuthService authService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
     }
 
     @PostMapping("/register")
@@ -47,26 +52,22 @@ public class AuthController {
         String username = creds.get("username");
         String password = creds.get("password");
 
-        return userRepository.findByUsername(username)
-                .filter(u -> passwordEncoder.matches(password, u.getPassword()))
-                .map(u -> {
-                    // SPRAWDZENIE CZY KONTO AKTYWNE
-                    if (!u.isActive()) {
-                        return ResponseEntity.status(403).body((Object) Map.of("status", "PENDING", "message", "Konto nieaktywne. Skontaktuj się z administratorem."));
-                    }
+        // WYWOŁUJEMY SERWIS (on wyśle log do RabbitMQ)
+        String token = authService.generateToken(username, password);
 
-                    Map<String, Object> response = new HashMap<>();
-                    response.put("status", "OK");
-                    response.put("role", u.getRole());
-                    response.put("userId", u.getId());
-                    // Dodatkowo zwracamy imię i nazwisko przy logowaniu, jeśli są ustawione
-                    response.put("firstName", u.getFirstName());
-                    response.put("lastName", u.getLastName());
-                    response.put("email", u.getEmail());
+        if (token != null) {
+            return userRepository.findByUsername(username).map(u -> {
+                Map<String, Object> response = new HashMap<>();
+                response.put("status", "OK");
+                response.put("role", u.getRole());
+                response.put("userId", u.getId());
+                response.put("email", u.getEmail());
+                response.put("token", token);
+                return ResponseEntity.ok((Object) response);
+            }).orElse(ResponseEntity.status(401).build());
+        }
 
-                    return ResponseEntity.ok((Object) response);
-                })
-                .orElse(ResponseEntity.status(401).body(Map.of("status", "ERROR", "message", "Błędne dane")));
+        return ResponseEntity.status(401).body(Map.of("message", "Błędne dane lub konto nieaktywne"));
     }
 
     // --- Endpointy dla Użytkownika (Moje Konto) ---

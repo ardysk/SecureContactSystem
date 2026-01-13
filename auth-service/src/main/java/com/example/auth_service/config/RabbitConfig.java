@@ -7,9 +7,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    // Definiujemy kolejkę audit.queue, na której nasłuchuje audit-service
     @Bean
     public Queue auditQueue() {
-        return new Queue("audit.queue", false);
+        return new Queue("audit-queue", false); // Zmień audit.queue na audit-queue
     }
 }

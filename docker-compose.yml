@@ -128,6 +128,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=admin
       - SPRING_DATASOURCE_PASSWORD=adminpassword
       - SERVER_PORT=8082
+      - SPRING_RABBITMQ_HOST=rabbitmq
     depends_on:
       auth-db:
         condition: service_healthy

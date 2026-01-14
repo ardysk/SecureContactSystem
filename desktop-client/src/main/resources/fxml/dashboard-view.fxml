@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.client.controller.DashboardController">
+
+    <top>
+        <HBox style="-fx-background-color: #0066cc; -fx-padding: 15;">
+            <Label text="SECS Enterprise System" textFill="white">
+                <font><Font name="System Bold" size="18.0"/></font>
+            </Label>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="welcomeLabel" text="Witaj, użytkowniku" textFill="white"/>
+        </HBox>
+    </top>
+
+    <left>
+        <VBox spacing="10" style="-fx-background-color: #f4f4f4; -fx-padding: 10; -fx-pref-width: 150;">
+            <Label text="MENU" style="-fx-text-fill: gray; -fx-font-weight: bold;"/>
+
+            <Button text="Dashboard" onAction="#onDashboardClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+
+            <Button text="Kontakty" onAction="#onContactsClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+            <Button text="Poczta" onAction="#onMailClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+            <Button text="Pliki FTP" onAction="#onFtpClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT;"/>
+
+            <Separator/>
+            <Button fx:id="adminPanelButton" text="Panel Admina" onAction="#onAdminPanelClick"
+                    maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT; -fx-font-weight: bold; -fx-text-fill: darkred;"/>
+
+            <Separator/>
+            <Button text="Moje Konto" onAction="#onAccountClick" maxWidth="Infinity" style="-fx-alignment: CENTER-LEFT; -fx-font-weight: bold;"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <Button text="Wyloguj" onAction="#onLogout" maxWidth="Infinity" style="-fx-text-fill: red;"/>
+        </VBox>
+    </left>
+
+    <center>
+        <StackPane fx:id="contentArea">
+            <VBox spacing="20" style="-fx-padding: 20;">
+                <Label text="Przegląd Systemu">
+                    <font><Font size="24.0"/></font>
+                </Label>
+
+                <HBox spacing="20" VBox.vgrow="ALWAYS">
+                    <VBox style="-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 15;" HBox.hgrow="ALWAYS">
+                        <Label text="Nowe Wiadomości (Inbox)">
+                            <font><Font name="System Bold" size="14.0"/></font>
+                        </Label>
+                        <ListView fx:id="latestEmailsList" VBox.vgrow="ALWAYS"/>
+                        <Button text="Przejdź do Poczty" onAction="#onMailClick" style="-fx-background-color: transparent; -fx-text-fill: #0066cc;"/>
+                    </VBox>
+
+                    <VBox style="-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0); -fx-padding: 15;" HBox.hgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label text="Ostatnie Zdarzenia (Audit)">
+                                <font><Font name="System Bold" size="14.0"/></font>
+                            </Label>
+                            <Button text="Odśwież" onAction="#refreshAuditLogs"/>
+                        </HBox>
+                        <TableView fx:id="auditTable" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colAction" text="Typ" prefWidth="100.0"/>
+                                <TableColumn fx:id="colWho" text="User" prefWidth="100.0"/>
+                                <TableColumn fx:id="colDetails" text="Wiadomość" prefWidth="250.0"/>
+                                <TableColumn fx:id="colTime" text="Czas" prefWidth="150.0"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </HBox>
+            </VBox>
+        </StackPane>
+    </center>
+
+    <bottom>
+        <HBox style="-fx-padding: 5; -fx-background-color: #e0e0e0;">
+            <Label text="System Status: Connected" textFill="green"/>
+        </HBox>
+    </bottom>
+</BorderPane>

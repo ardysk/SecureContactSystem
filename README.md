@@ -13,23 +13,39 @@ The system consists of two backend microservices, a comprehensive infrastructure
 
 ```mermaid
 graph TD
-    Client[Desktop Client GUI] -->|REST HTTP| ContactService
+    Client[Desktop Client GUI] -->|REST HTTP| Gateway[API Gateway :8000]
     Client -->|TCP Socket| ContactService
     Client -->|UDP Datagram| ContactService
     Client -->|FTP| FTPServer[FTP Server]
     Client -->|POP3| MailServer[GreenMail SMTP/POP3]
     
-    subgraph Backend Infrastructure
-    ContactService[Contact Service] -->|JDBC| DB[(PostgreSQL)]
-    ContactService -->|AMQP| RabbitMQ
-    RabbitMQ -->|AMQP| NotifService[Notification Service]
-    NotifService -->|SMTP| MailServer
+    subgraph Microservices
+        Gateway -->|Route| AuthService[Auth Service :8082]
+        Gateway -->|Route| ContactService[Contact Service :8080]
+        Gateway -->|Route| AuditService[Audit Service :8083]
+        Gateway -->|Route| NotifService[Notification Service :8084]
+    end
+
+    subgraph Storage
+        AuthService -->|JDBC| AuthDB[(PostgreSQL :5433)]
+        ContactService -->|JDBC| ContactDB[(PostgreSQL :5432)]
+        AuditService -->|NoSQL| AuditDB[(MongoDB :27017)]
     end
     
-    subgraph Monitoring
-    Promtail -->|Logs| Loki
-    Grafana -->|Visualize| Loki
+    subgraph Messaging
+        AuthService -.->|Event| RabbitMQ
+        ContactService -.->|Event| RabbitMQ
+        RabbitMQ -.->|Consume| NotifService
+        RabbitMQ -.->|Consume| AuditService
     end
+
+    subgraph Monitoring
+        Services --> Promtail/Telegraf/cAdvisor
+        Promtail/Telegraf/cAdvisor --> Loki/Prometheus
+        Loki/Prometheus --> Grafana
+    end
+
+
 ```
 
 ## 🚀 Key Features & Protocols
@@ -48,8 +64,8 @@ This project implements **5 Application Layer Protocols** and enterprise-grade f
 * **AES Encryption**: Sensitive data (Contact Address) is encrypted/decrypted on the fly before database persistence.
 * **Authentication**: Custom Login/Registration system with **BCrypt** password hashing.
 * **Role-Based Access Control (RBAC)**:
-    * **ADMIN**: Full access, User management (Delete/Reset Password), DB Backup.
-    * **USER**: Limited access (Email, FTP only).
+    * **ADMIN**: Full access, User management (Delete/Reset Password), DB Backup.
+    * **USER**: Limited access (Email, FTP only).
 * **Password Policy**: Admin can force users to change their password upon next login.
 
 ### 3. Advanced Integration
@@ -89,8 +105,8 @@ docker-compose up -d
 
 ### 2. Run Microservices
 Start the backend services using IntelliJ or Terminal:
-1.  `ContactServiceApplication` (Port 8080) - *Core Logic*
-2.  `NotificationServiceApplication` (Port 8081) - *Email Worker*
+1.  `ContactServiceApplication` (Port 8080) - *Core Logic*
+2.  `NotificationServiceApplication` (Port 8081) - *Email Worker*
 
 ### 3. Run Client
 Run `ClientApp.java` in the `desktop-client` module.
@@ -106,11 +122,11 @@ Run `ClientApp.java` in the `desktop-client` module.
 *Note: Upon first login as 'user', the system will enforce a password change.*
 
 ### Features Walkthrough
-1.  **Login/Register**: Create a new account or log in with existing credentials.
-2.  **Contacts (Admin)**: Add a contact. Notice `Address` is encrypted in DB but readable in UI. Note `Age` is auto-fetched from external API if left '0'.
-3.  **Email**: Go to "Mail". Use Autocomplete to find users. Send an email. Go to "Inbox", click "Fetch (POP3)" to read it.
-4.  **FTP**: Upload a file from your disk. Click "Refresh List" to see it on the server. Share files via email automatically.
-5.  **TCP Monitor**: Check the bottom bar. It shows "Server TCP: OK" (Green) if the backend is alive.
+1.  **Login/Register**: Create a new account or log in with existing credentials.
+2.  **Contacts (Admin)**: Add a contact. Notice `Address` is encrypted in DB but readable in UI. Note `Age` is auto-fetched from external API if left '0'.
+3.  **Email**: Go to "Mail". Use Autocomplete to find users. Send an email. Go to "Inbox", click "Fetch (POP3)" to read it.
+4.  **FTP**: Upload a file from your disk. Click "Refresh List" to see it on the server. Share files via email automatically.
+5.  **TCP Monitor**: Check the bottom bar. It shows "Server TCP: OK" (Green) if the backend is alive.
 
 ## 📊 Monitoring (Grafana)
 Access Grafana at `http://localhost:3000` (User: `admin`, Pass: `admin`).
@@ -119,3 +135,5 @@ Navigate to **Explore** -> Select **Loki** -> Query `{job="varlogs"}` to see rea
 ---
 *Project created for University Course
 *
+
+zaktualizuj to README i zapisz do pliku bym mogl je pobrac

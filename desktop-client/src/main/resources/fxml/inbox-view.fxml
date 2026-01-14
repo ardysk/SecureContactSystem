@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<HBox spacing="10.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.client.controller.InboxController">
+    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+    <VBox spacing="5" minWidth="300">
+        <Label text="Odebrane"><font><Font size="18"/></font></Label>
+        <ListView fx:id="emailList" VBox.vgrow="ALWAYS"/>
+    </VBox>
+
+    <VBox spacing="5" HBox.hgrow="ALWAYS">
+        <Label text="Treść"><font><Font size="18"/></font></Label>
+        <Label fx:id="subjectLabel" style="-fx-font-weight: bold;"/>
+        <Label fx:id="fromLabel" textFill="gray"/>
+        <TextArea fx:id="contentArea" wrapText="true" VBox.vgrow="ALWAYS" editable="false"/>
+    </VBox>
+</HBox>

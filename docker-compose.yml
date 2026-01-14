@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # --- App ---
+  # --- INFRASTRUKTURA ---
   postgres:
     image: postgres:15-alpine
     container_name: scs-postgres
@@ -13,6 +11,42 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d contacts_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  auth-db:
+    image: postgres:15-alpine
+    container_name: scs-auth-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: auth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  audit-db:
+    image: mongo:latest
+    container_name: scs-audit-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - audit_data:/data/db
+    networks:
+      - app-network
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -20,6 +54,13 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - app-network
 
   mailserver:
     image: greenmail/standalone:latest
@@ -30,6 +71,8 @@ services:
       - "8085:8080"
     environment:
       - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=admin:admin123@localhost,user:user123@localhost
+    networks:
+      - app-network
 
   ftp-server:
     image: fauria/vsftpd
@@ -37,25 +80,145 @@ services:
     environment:
       - FTP_USER=admin
       - FTP_PASS=admin
+      - PASV_ADDRESS=127.0.0.1
+      - PASV_MIN_PORT=21100
+      - PASV_MAX_PORT=21110
     ports:
       - "20:20"
       - "21:21"
       - "21100-21110:21100-21110"
+    volumes:
+      - ./ftp_data:/home/vsftpd/admin
+    networks:
+      - app-network
 
-  # --- Monitoring  ---
+  # --- MIKROSERWISY ---
+
+  gateway-service:
+    build: ./gateway-service
+    container_name: app-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_ID=auth-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://auth-service:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0=Path=/api/auth/**
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_ID=contact-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://contact-service:8080
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_PREDICATES_0=Path=/api/contacts/**
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_ID=audit-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://audit-service:8083
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_PREDICATES_0=Path=/api/audit/**
+      - SPRING_CLOUD_GATEWAY_ROUTES_3_ID=notification-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_3_URI=http://notification-service:8084
+      - SPRING_CLOUD_GATEWAY_ROUTES_3_PREDICATES_0=Path=/api/email/**
+    depends_on:
+      - auth-service
+      - contact-service
+      - audit-service
+      - notification-service
+    networks:
+      - app-network
+
+  auth-service:
+    build: ./auth-service
+    container_name: app-auth
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://auth-db:5432/auth_db
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=adminpassword
+      - SERVER_PORT=8082
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  contact-service:
+    build: ./contact-service
+    container_name: app-contact
+    ports:
+      - "8888:8888"
+      - "9999:9999/udp"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/contacts_db
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=adminpassword
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SERVER_PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  audit-service:
+    build: ./audit-service
+    container_name: app-audit
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://audit-db:27017/audit_db
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SERVER_PORT=8083
+    depends_on:
+      - audit-db
+      - rabbitmq
+    networks:
+      - app-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: app-notification
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/contacts_db
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=adminpassword
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SERVER_PORT=8084
+      - SPRING_MAIL_HOST=scs-mailserver
+      - SPRING_MAIL_PORT=3025
+      - SPRING_MAIL_USERNAME=admin
+      - SPRING_MAIL_PASSWORD=admin123
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailserver:
+        condition: service_started
+    networks:
+      - app-network
+
+  # --- MONITORING I LOGI ---
+
   loki:
-    image: grafana/loki:2.9.0
+    image: grafana/loki:2.9.2
     container_name: scs-loki
     ports:
       - "3100:3100"
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - app-network
 
   promtail:
-    image: grafana/promtail:2.9.0
+    image: grafana/promtail:2.9.2
     container_name: scs-promtail
     volumes:
-      - /var/log:/var/log
+      - /var/run/docker.sock:/var/run/docker.sock # DODAJ TO (dostęp do metadanych)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Dostęp do plików logów
+      - ./config/promtail-config.yaml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
+    networks:
+      - app-network
 
   grafana:
     image: grafana/grafana:latest
@@ -66,6 +229,61 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - loki
+    networks:
+      - app-network
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: scs-cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    command:
+      - --docker_only=true
+      - --disable_metrics=percpu,process,sched,tcp,udp
+      - --housekeeping_interval=10
+      - --store_container_labels=true
+      - --whitelisted_container_labels=io.kubernetes.container.name,com.docker.compose.service,com.docker.compose.project,com.docker.compose.container-name
+    networks:
+      - app-network
+
+  telegraf:
+    image: telegraf:1.30-alpine
+    container_name: scs-telegraf
+    user: "0:0"
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    ports:
+      - "9273:9273"
+    networks:
+      - app-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scs-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:
+  auth_data:
+  audit_data:

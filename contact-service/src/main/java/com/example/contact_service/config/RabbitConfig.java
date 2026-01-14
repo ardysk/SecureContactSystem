@@ -7,9 +7,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitConfig {
 
-    // Tworzymy kolejkę o nazwie "contact-created-queue"
     @Bean
     public Queue contactQueue() {
         return new Queue("contact-created-queue", false);
+    }
+
+    @Bean
+    public Queue auditQueue() {
+        return new Queue("audit-queue", false);
     }
 }

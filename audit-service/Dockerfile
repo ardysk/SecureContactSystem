@@ -1,4 +1,4 @@
-# Używamy obrazu Javy 23 (zgodnie z Twoim projektem)
+# Używamy obrazu Javy 23
 FROM eclipse-temurin:23-jdk-alpine
 
 # Katalog roboczy w kontenerze

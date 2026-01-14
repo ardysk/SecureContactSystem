@@ -1,5 +1,5 @@
 server:
-  port: 8000  # Gateway wystawia się na porcie 8000
+  port: 8000
 
 spring:
   application:
@@ -7,26 +7,22 @@ spring:
   cloud:
     gateway:
       routes:
-        # --- Trasa do Auth Service ---
         - id: auth-service
-          uri: http://localhost:8082
+          uri: http://auth-service:8082
           predicates:
             - Path=/api/auth/**
 
-        # --- Trasa do Contact Service ---
         - id: contact-service
-          uri: http://localhost:8080
+          uri: http://contact-service:8080
           predicates:
             - Path=/api/contacts/**
 
-        # --- Trasa do Audit Service (na przyszłość, np. dla Admina) ---
         - id: audit-service
-          uri: http://localhost:8083
+          uri: http://audit-service:8083
           predicates:
             - Path=/api/audit/**
 
-        # --- Trasa do Notification Service (opcjonalna, jeśli wystawia API) ---
         - id: notification-service
-          uri: http://localhost:8081
+          uri: http://notification-service:8081
           predicates:
-            - Path=/api/notifications/**
+            - Path=/api/email/**

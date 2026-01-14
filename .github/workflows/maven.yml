@@ -1,4 +1,4 @@
-name: Java CI with Maven
+name: Java CI with Maven and Docker
 
 on:
   push:
@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [ "master" ]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +24,54 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build all modules (Skip Tests)
+      # Budowanie wszystkich JARów za jednym razem
+      - name: Build with Maven
         run: mvn -B clean install -DskipTests
 
-      - name: Run Backend Tests
-        run: mvn -B test -pl contact-service,auth-service,notification-service,audit-service
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Konwersja nazwy repozytorium na małe litery (wymagane przez GHCR)
+      - name: Lowercase repo name
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      # Budowanie i wypychanie każdego serwisu zdefiniowanego w docker-compose
+      - name: Build and push Gateway Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./gateway-service
+          push: true
+          tags: ghcr.io/${{ env.REPO_LC }}/gateway-service:latest
+
+      - name: Build and push Auth Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./auth-service
+          push: true
+          tags: ghcr.io/${{ env.REPO_LC }}/auth-service:latest
+
+      - name: Build and push Contact Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./contact-service
+          push: true
+          tags: ghcr.io/${{ env.REPO_LC }}/contact-service:latest
+
+      - name: Build and push Audit Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./audit-service
+          push: true
+          tags: ghcr.io/${{ env.REPO_LC }}/audit-service:latest
+
+      - name: Build and push Notification Service
+        uses: docker/build-push-action@v4
+        with:
+          context: ./notification-service
+          push: true
+          tags: ghcr.io/${{ env.REPO_LC }}/notification-service:latest

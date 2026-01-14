@@ -19,7 +19,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Sprawdzamy, czy admin już istnieje, żeby nie nadpisywać go przy każdym restarcie (jeśli nie czyścimy voluminów)
+
         if (userRepository.findByUsername("admin").isEmpty()) {
             User admin = new User();
             admin.setUsername("admin");
@@ -28,7 +28,6 @@ public class DataInitializer implements CommandLineRunner {
             admin.setEmail("admin@secure-system.com");
             admin.setActive(true); // Admin jest od razu aktywny
 
-            // Dodajemy nowe pola, które wprowadziliśmy wcześniej
             admin.setFirstName("Super");
             admin.setLastName("Admin");
             admin.setAddress("Serwerownia 1");

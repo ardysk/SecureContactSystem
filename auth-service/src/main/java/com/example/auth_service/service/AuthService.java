@@ -2,7 +2,7 @@ package com.example.auth_service.service;
 
 import com.example.auth_service.model.User;
 import com.example.auth_service.repository.UserRepository;
-import org.springframework.amqp.rabbit.core.RabbitTemplate; // <--- To jest niezbędne
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -13,9 +13,8 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RabbitTemplate rabbitTemplate; // <--- Dodajemy pole do obsługi RabbitMQ
+    private final RabbitTemplate rabbitTemplate;
 
-    // RĘCZNY KONSTRUKTOR - Inicjalizuje wszystkie pola (w tym rabbitTemplate)
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        RabbitTemplate rabbitTemplate) {
@@ -24,24 +23,33 @@ public class AuthService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+    public User register(User user) {
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        User savedUser = userRepository.save(user);
+
+        try {
+            String auditMsg = "USER_REGISTER|SYSTEM|Zarejestrowano nowego użytkownika: " + savedUser.getUsername();
+            rabbitTemplate.convertAndSend("audit-exchange", "audit-routing-key", auditMsg);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+
+        return savedUser;
+    }
+
     public String generateToken(String username, String password) {
         Optional<User> userOpt = userRepository.findByUsername(username);
 
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            // Sprawdzamy hasło i czy konto jest aktywne
             if (passwordEncoder.matches(password, user.getPassword()) && user.isActive()) {
 
-                // --- TUTAJ DODAJEMY WYSYŁANIE LOGU ---
                 try {
-                    // UWAGA: Używamy nazwy "audit-queue" (z myślnikiem), bo taką ma AuditService
                     String logMessage = "LOGIN_SUCCESS|" + username + "|Użytkownik zalogował się do systemu";
-                    rabbitTemplate.convertAndSend("audit-queue", logMessage);
-                    System.out.println(" [AuthService] Wysłano log do RabbitMQ: " + logMessage);
+                    rabbitTemplate.convertAndSend("audit-exchange", "audit-routing-key", logMessage);
                 } catch (Exception e) {
-                    System.err.println(" [AuthService] Błąd wysyłania logu: " + e.getMessage());
+                    System.err.println(e.getMessage());
                 }
-                // -------------------------------------
 
                 return "generated-jwt-token-for-" + username;
             }

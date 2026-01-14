@@ -12,7 +12,6 @@ public class AuthServiceApplication {
         SpringApplication.run(AuthServiceApplication.class, args);
     }
 
-    // --- TEN FRAGMENT WYPISZE POTWIERDZENIE NOWEJ WERSJI ---
     @Bean
     public CommandLineRunner versionCheck() {
         return args -> {

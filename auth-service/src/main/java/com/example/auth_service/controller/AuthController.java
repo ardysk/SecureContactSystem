@@ -52,7 +52,6 @@ public class AuthController {
         String username = creds.get("username");
         String password = creds.get("password");
 
-        // WYWOŁUJEMY SERWIS (on wyśle log do RabbitMQ)
         String token = authService.generateToken(username, password);
 
         if (token != null) {
@@ -70,15 +69,12 @@ public class AuthController {
         return ResponseEntity.status(401).body(Map.of("message", "Błędne dane lub konto nieaktywne"));
     }
 
-    // --- Endpointy dla Użytkownika (Moje Konto) ---
-
     @PutMapping("/profile/{username}")
     public ResponseEntity<?> updateProfile(@PathVariable String username, @RequestBody Map<String, String> data) {
         return userRepository.findByUsername(username)
                 .map(u -> {
                     if (data.containsKey("firstName")) u.setFirstName(data.get("firstName"));
                     if (data.containsKey("lastName")) u.setLastName(data.get("lastName"));
-                    // Opcjonalnie zmiana hasła itp.
                     userRepository.save(u);
                     return ResponseEntity.ok("Profil zaktualizowany");
                 })
@@ -91,16 +87,11 @@ public class AuthController {
                 .map(u -> ResponseEntity.ok(u))
                 .orElse(ResponseEntity.notFound().build());
     }
-
-    // --- Endpointy dla Admina (Zarządzanie) ---
-
-    // 1. Pobieranie WSZYSTKICH użytkowników (dla panelu Admina i widoku Kontaktów)
     @GetMapping("/users")
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
-    // 2. Edycja dowolnego użytkownika przez Admina (CRUD)
     @PutMapping("/admin/users/{id}")
     public ResponseEntity<?> updateUserByAdmin(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         return userRepository.findById(id)

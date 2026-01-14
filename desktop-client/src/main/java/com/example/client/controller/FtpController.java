@@ -2,6 +2,7 @@ package com.example.client.controller;
 
 import com.example.client.ClientApplication;
 import com.example.client.service.FtpService;
+import com.example.client.session.UserSession;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -20,18 +21,16 @@ public class FtpController {
 
     @FXML
     public void initialize() {
-        refreshList(); // Ładujemy listę od razu po otwarciu
+        refreshList();
     }
 
     @FXML
     public void refreshList() {
         statusLabel.setText("Odświeżanie listy plików...");
 
-        // Operacje sieciowe robimy w nowym wątku, żeby nie zamrozić okna aplikacji!
         new Thread(() -> {
             List<String> files = ftpService.listFiles();
 
-            // Aktualizację interfejsu (UI) musimy zlecić z powrotem do wątku JavaFX
             Platform.runLater(() -> {
                 fileList.getItems().setAll(files);
                 statusLabel.setText("Lista zaktualizowana: " + files.size() + " plików.");
@@ -42,7 +41,6 @@ public class FtpController {
 
     @FXML
     public void uploadFile() {
-        // Otwieramy okno wyboru pliku z dysku
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Wybierz plik do wysłania na serwer");
         File file = fileChooser.showOpenDialog(statusLabel.getScene().getWindow());
@@ -51,12 +49,13 @@ public class FtpController {
             statusLabel.setText("Wysyłanie: " + file.getName() + "...");
 
             new Thread(() -> {
-                boolean success = ftpService.uploadFile(file);
+                String currentUser = UserSession.getInstance().getUsername();
+                boolean success = ftpService.uploadFile(file, currentUser);
                 Platform.runLater(() -> {
                     if (success) {
                         statusLabel.setText("Sukces! Plik wysłany.");
                         statusLabel.setStyle("-fx-text-fill: green;");
-                        refreshList(); // Odśwież listę, żeby zobaczyć nowy plik
+                        refreshList();
                     } else {
                         statusLabel.setText("Błąd wysyłania pliku.");
                         statusLabel.setStyle("-fx-text-fill: red;");
@@ -77,7 +76,6 @@ public class FtpController {
 
     @FXML
     public void downloadFile() {
-        // Sprawdzamy co użytkownik zaznaczył na liście
         String selectedFile = fileList.getSelectionModel().getSelectedItem();
 
         if (selectedFile == null) {
@@ -86,7 +84,6 @@ public class FtpController {
             return;
         }
 
-        // Pytamy gdzie zapisać
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Zapisz plik jako...");
         fileChooser.setInitialFileName(selectedFile);

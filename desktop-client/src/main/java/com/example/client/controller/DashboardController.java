@@ -62,6 +62,7 @@ public class DashboardController {
         colDetails.setCellValueFactory(new PropertyValueFactory<>("message"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
 
+        // Załadowanie danych przy starcie
         loadLatestEmails();
         refreshAuditLogs();
     }
@@ -71,6 +72,7 @@ public class DashboardController {
         if (defaultDashboardView != null) {
             contentArea.getChildren().clear();
             contentArea.getChildren().add(defaultDashboardView);
+            // Odświeżanie obu sekcji po kliknięciu w menu
             refreshAuditLogs();
             loadLatestEmails();
         }
@@ -122,13 +124,25 @@ public class DashboardController {
         try {
             String email = UserSession.getInstance().getEmail();
             if (email == null) return;
-            var response = restTemplate.exchange("http://localhost:8000/api/email/inbox?email=" + email, HttpMethod.GET, null, new ParameterizedTypeReference<List<EmailLogDto>>() {});
+
+            // Pobieranie maili z API
+            var response = restTemplate.exchange(
+                    "http://localhost:8000/api/email/inbox?email=" + email,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<List<EmailLogDto>>() {}
+            );
+
             if (response.getBody() != null) {
                 latestEmailsList.getItems().clear();
-                response.getBody().stream().filter(e -> !e.isRead()).limit(5)
+                // ZMIANA: Usunięto .filter(e -> !e.isRead()), aby pokazywać wszystkie ostatnie wiadomości
+                response.getBody().stream()
+                        .limit(5)
                         .forEach(e -> latestEmailsList.getItems().add("✉ " + e.getSubject()));
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Błąd ładowania maili w Dashboard: " + e.getMessage());
+        }
     }
 
     public void loadView(String fxmlFile) {

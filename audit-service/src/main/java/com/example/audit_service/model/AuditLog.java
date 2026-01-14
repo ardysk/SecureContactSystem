@@ -13,7 +13,6 @@ public class AuditLog {
     private String username;
     private LocalDateTime timestamp = LocalDateTime.now();
 
-    // --- Ręczne Gettery i Settery ---
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
